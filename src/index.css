@@ -85,6 +85,14 @@
     @apply bg-secondary/20 opacity-100;
   }
 
+  .game-box.player3 {
+    @apply bg-accent/20 opacity-100;
+  }
+
+  .game-box.player4 {
+    @apply bg-emerald-500/20 opacity-100;
+  }
+
   .badge {
     @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium;
   }

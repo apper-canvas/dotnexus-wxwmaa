@@ -14,9 +14,10 @@ const MainFeature = () => {
   // Game settings
   const [gridSize, setGridSize] = useState(5); // 5x5 grid (6x6 dots)
   const [currentPlayer, setCurrentPlayer] = useState(1); // 1 or 2
+  const [playerCount, setPlayerCount] = useState(2); // Default to 2 players
   const [showSettings, setShowSettings] = useState(false);
   const [gameStatus, setGameStatus] = useState('playing'); // 'playing', 'finished'
-  const [scores, setScores] = useState({ 1: 0, 2: 0 });
+  const [scores, setScores] = useState({ 1: 0, 2: 0, 3: 0, 4: 0 });
   const [availableSizes] = useState([3, 4, 5, 6, 7, 8]);
   
   // Game state
@@ -30,14 +31,22 @@ const MainFeature = () => {
     setVerticalLines([]);
     setBoxes([]);
     setCurrentPlayer(1);
-    setScores({ 1: 0, 2: 0 });
+    setScores({ 1: 0, 2: 0, 3: 0, 4: 0 });
     setGameStatus('playing');
   }, []);
 
   useEffect(() => {
     initializeGame();
-  }, [gridSize, initializeGame]);
+  }, [gridSize, playerCount, initializeGame]);
   
+  // Player colors for easy reference
+  const playerColors = {
+    1: 'primary',
+    2: 'secondary',
+    3: 'accent',
+    4: 'emerald-500'
+  };
+
   // Check if a box is completed
   const checkForCompletedBoxes = (newHorizontalLines, newVerticalLines) => {
     let boxesCompleted = false;
@@ -70,7 +79,10 @@ const MainFeature = () => {
       // Update scores
       const player1Boxes = newBoxes.filter(box => box.owner === 1).length;
       const player2Boxes = newBoxes.filter(box => box.owner === 2).length;
-      setScores({ 1: player1Boxes, 2: player2Boxes });
+      const player3Boxes = newBoxes.filter(box => box.owner === 3).length;
+      const player4Boxes = newBoxes.filter(box => box.owner === 4).length;
+      
+      setScores({ 1: player1Boxes, 2: player2Boxes, 3: player3Boxes, 4: player4Boxes });
       
       // Check if game is finished
       const totalBoxes = gridSize * gridSize;
@@ -108,7 +120,7 @@ const MainFeature = () => {
       
       // Switch player if no boxes were completed
       if (!boxCompleted) {
-        setCurrentPlayer(currentPlayer === 1 ? 2 : 1);
+        switchToNextPlayer();
       }
     } else {
       if (verticalLines.some(line => line.row === row && line.col === col)) {
@@ -123,10 +135,20 @@ const MainFeature = () => {
       
       // Switch player if no boxes were completed
       if (!boxCompleted) {
-        setCurrentPlayer(currentPlayer === 1 ? 2 : 1);
+        switchToNextPlayer();
       }
     }
   };
+  
+  // Switch to the next player based on player count
+  const switchToNextPlayer = () => {
+    setCurrentPlayer(prevPlayer => {
+      const nextPlayer = prevPlayer % playerCount + 1;
+      return nextPlayer;
+    });
+  };
+
+  // Handle size change
   
   const handleSizeChange = (newSize) => {
     setGridSize(newSize);
@@ -136,9 +158,39 @@ const MainFeature = () => {
   
   // Determine winner
   const getWinner = () => {
-    if (scores[1] > scores[2]) return 1;
-    if (scores[2] > scores[1]) return 2;
-    return 0; // Tie
+    // Find the highest score
+    const highestScore = Math.max(...Object.values(scores).slice(0, playerCount));
+    
+    // If highest score is 0, game is not finished
+    if (highestScore === 0) return 0;
+    
+    // Find all players with the highest score
+    const winners = Object.keys(scores)
+      .filter(player => parseInt(player) <= playerCount && scores[player] === highestScore)
+      .map(player => parseInt(player));
+    
+    // If more than one player has the highest score, it's a tie
+    if (winners.length > 1) return winners;
+    
+    // Return the single winner
+    return winners[0];
+  };
+  
+  // Handle player count change
+  const handlePlayerCountChange = (count) => {
+    if (count >= 2 && count <= 4) {
+      setPlayerCount(count);
+      setShowSettings(false);
+      toast.info(`Number of players set to ${count}`);
+    }
+  };
+  
+  // Format winners for display
+  const formatWinners = (winners) => {
+    if (!Array.isArray(winners)) return `Player ${winners}`;
+    if (winners.length === 0) return 'Nobody';
+    if (winners.length === 1) return `Player ${winners[0]}`;
+    return `Players ${winners.join(' & ')}`;
   };
 
   return (
@@ -166,15 +218,29 @@ const MainFeature = () => {
               </button>
             </div>
           </div>
-          
-          <div className="flex justify-between items-center mb-6">
-            <div className={`flex items-center space-x-2 p-2 rounded-lg ${currentPlayer === 1 ? 'bg-primary/10 dark:bg-primary/20' : ''}`}>
-              <div className="w-4 h-4 rounded-full bg-primary"></div>
-              <span className="font-medium">Player 1: {scores[1]}</span>
-            </div>
-            
-            <div className={`flex items-center space-x-2 p-2 rounded-lg ${currentPlayer === 2 ? 'bg-secondary/10 dark:bg-secondary/20' : ''}`}>
-              <div className="w-4 h-4 rounded-full bg-secondary"></div>
+          <div className="flex flex-wrap justify-center gap-2 mb-6">
+            {[...Array(playerCount)].map((_, index) => {
+              const playerNumber = index + 1;
+              const colorClass = playerColors[playerNumber];
+              
+              return (
+                <div 
+                  key={`player-score-${playerNumber}`}
+                  className={`flex items-center space-x-2 p-2 rounded-lg ${
+                    currentPlayer === playerNumber 
+                      ? `bg-${colorClass}/10 dark:bg-${colorClass}/20 border-2 border-${colorClass}`
+                      : ''
+                  }`}
+                  style={{
+                    minWidth: '100px',
+                    borderColor: currentPlayer === playerNumber ? `var(--tw-${colorClass})` : 'transparent'
+                  }}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-${colorClass}`}></div>
+                  <span className="font-medium">Player {playerNumber}: {scores[playerNumber]}</span>
+                </div>
+              );
+            })}
               <span className="font-medium">Player 2: {scores[2]}</span>
             </div>
           </div>
@@ -273,9 +339,17 @@ const MainFeature = () => {
                 <TrophyIcon className="w-8 h-8 text-accent mb-2" />
                 {getWinner() === 0 ? (
                   <p className="font-medium">It's a tie!</p>
-                ) : (
+                  <p className="font-medium">Game in progress</p>
+                ) : Array.isArray(getWinner()) ? (
+                  <div className="text-center">
+                    <p className="font-medium">It's a tie between</p>
+                    <p className="font-medium">
+                      {getWinner().map(player => `Player ${player}`).join(' & ')}
+                    </p>
+                  </div>
                   <p className="font-medium">Player {getWinner()} wins!</p>
-                )}
+                  <p className="font-medium">
+                    Player {getWinner()} wins!</p>
                 <button 
                   onClick={initializeGame}
                   className="mt-3 btn-primary text-sm px-3 py-1"
@@ -327,6 +401,39 @@ const MainFeature = () => {
                 </div>
               </div>
               
+              <div className="mb-4">
+                <label className="block text-surface-700 dark:text-surface-300 mb-2">
+                  Number of Players: {playerCount}
+                </label>
+                
+                <div className="flex gap-2">
+                  {[2, 3, 4].map(count => (
+                    <button
+                      key={size}
+                      onClick={() => handleSizeChange(size)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        size === gridSize 
+                          ? 'bg-primary text-white' 
+                          : 'bg-surface-200 dark:bg-surface-700 hover:bg-surface-300 dark:hover:bg-surface-600'
+                      }`}
+                    >
+                      {size}x{size}
+                  {[2, 3, 4].map(count => (
+                    <button
+                      key={`player-count-${count}`}
+                      onClick={() => handlePlayerCountChange(count)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        count === playerCount 
+                          ? 'bg-primary text-white' 
+                          : 'bg-surface-200 dark:bg-surface-700 hover:bg-surface-300 dark:hover:bg-surface-600'
+                      }`}
+                    >
+                      {count} Players
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
               <div className="flex justify-end">
                 <button
                   onClick={() => setShowSettings(false)}
@@ -346,13 +453,30 @@ const MainFeature = () => {
         
         <div className="space-y-3 text-surface-700 dark:text-surface-300 text-sm md:text-base">
           <p>
-            <span className="inline-block w-3 h-3 rounded-full bg-primary mr-2"></span>
-            Player 1 uses <span className="text-primary font-medium">purple</span> lines and boxes
+            Players take turns connecting dots. Each player has their own color:
           </p>
-          <p>
-            <span className="inline-block w-3 h-3 rounded-full bg-secondary mr-2"></span>
-            Player 2 uses <span className="text-secondary font-medium">pink</span> lines and boxes
-          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <p>
+              <span className="inline-block w-3 h-3 rounded-full bg-primary mr-2"></span>
+              Player 1: <span className="text-primary font-medium">Purple</span>
+            </p>
+            <p>
+              <span className="inline-block w-3 h-3 rounded-full bg-secondary mr-2"></span>
+              Player 2: <span className="text-secondary font-medium">Pink</span>
+            </p>
+            {playerCount > 2 && (
+              <p>
+                <span className="inline-block w-3 h-3 rounded-full bg-accent mr-2"></span>
+                Player 3: <span className="text-accent font-medium">Amber</span>
+              </p>
+            )}
+            {playerCount > 3 && (
+              <p>
+                <span className="inline-block w-3 h-3 rounded-full bg-emerald-500 mr-2"></span>
+                Player 4: <span className="text-emerald-500 font-medium">Green</span>
+              </p>
+            )}
+          </div>
           <p className="flex items-start">
             <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-surface-200 dark:bg-surface-700 text-xs mr-2">?</span>
             <span>Click between dots to draw lines. Complete a box to earn a point and an extra turn!</span>
@@ -361,7 +485,7 @@ const MainFeature = () => {
         
         <div className="mt-4 flex justify-between items-center text-xs text-surface-500 dark:text-surface-400">
           <p>Adjust grid size in settings</p>
-          <p>First to claim the most boxes wins!</p>
+          <p>Player with the most boxes wins!</p>
         </div>
       </div>
     </div>
